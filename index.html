@@ -322,7 +322,7 @@ async function choisir(j){
   document.getElementById('done-msg').textContent='Chargement...';
   try{
     await lireCloud();
-    if(cloud.predictions[moi]!==null){
+    if(cloud.predictions[moi]!==null && cloud.predictions[moi]!==undefined){
       afficherDone();
     } else {
       afficherWizard();
@@ -381,7 +381,6 @@ function afficherWizard(){
 
 async function soumettre(){
   const btn=document.getElementById('btn-submit');
-  // Collecter
   const preds={};
   let manquants=0;
   GROUPES.forEach(g=>{
@@ -398,14 +397,19 @@ async function soumettre(){
   btn.innerHTML='<span class="spin">⟳</span> ENVOI EN COURS...';
 
   try{
-    // Relire pour ne pas écraser l'autre joueur
     await lireCloud();
     cloud.predictions[moi]=preds;
     await ecrireCloud();
-    btn.className='btn-submit success';
-    btn.innerHTML='✅ ENVOYÉ ET VERROUILLÉ !';
-    toast('✓ Prédictions sauvegardées !','ok');
-    setTimeout(()=>afficherDone(),1500);
+    // Vérifier que la sauvegarde a bien fonctionné
+    await lireCloud();
+    if(cloud.predictions[moi]!==null && cloud.predictions[moi]!==undefined){
+      btn.className='btn-submit success';
+      btn.innerHTML='✅ ENVOYÉ ET VERROUILLÉ !';
+      toast('✓ Prédictions sauvegardées !','ok');
+      setTimeout(()=>afficherDone(),1500);
+    } else {
+      throw new Error('Vérification échouée');
+    }
   }catch(e){
     btn.className=`btn-submit idle ${moi==='papa'?'ps':'as'}`;
     btn.innerHTML='💾 SAUVEGARDER & ENVOYER';
