@@ -258,7 +258,7 @@ body{background:var(--fond);color:var(--blanc);font-family:'Inter',sans-serif;mi
 // ══════════════════════════════════
 // CONFIG JSONBIN
 // ══════════════════════════════════
-const BIN_ID = '6a2d776ada38895dfeba8618';
+const BIN_ID = '6a2d848df5f4af5e29ec39b6';
 const API_KEY = '$2a$10$RoeeYRY4lDDoJBB2JZ1HZ.ZTY001ilYtKcc7Hm/YR939i9Kd0T2Z2';
 const BIN_URL = `https://api.jsonbin.io/v3/b/${BIN_ID}`;
 
@@ -292,9 +292,13 @@ async function lireCloud(){
     headers:{'X-Master-Key':API_KEY,'X-Bin-Meta':'false'}
   });
   if(!r.ok) throw new Error('Lecture échouée');
-  cloud=await r.json();
+  const raw=await r.json();
+  // JSONBin peut encapsuler dans {record: {...}} ou retourner directement
+  const data = raw.record ? raw.record : raw;
+  cloud = data;
   if(!cloud.predictions) cloud.predictions={papa:null,alex:null};
   if(!cloud.resultats)   cloud.resultats={};
+  console.log('Cloud lu:', JSON.stringify(cloud.predictions));
 }
 
 async function ecrireCloud(){
