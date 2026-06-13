@@ -479,52 +479,131 @@ function afficherStatus(){
      <span class="st ${ab?'ok':'wait'}">👦 Alex : ${ab?'✓ Soumis':'⏳ En attente'}</span>`;
 }
 
-// ══ RÉSULTATS RÉELS ══
-function construireRes(){
-  document.getElementById('res-c').innerHTML=GROUPES.map(g=>{
-    const res=cloud.resultats[g.id];
+// ══ RÉSULTATS RÉELS — API FIFA via football-data.org ══
+// Mapping groupes → noms FIFA
+const FIFA_GROUPES={
+  'A':['Mexico','Korea Republic','South Africa','Czechia'],
+  'B':['Canada','Bosnia and Herzegovina','Qatar','Switzerland'],
+  'C':['Argentina','Algeria','Ukraine','Poland'],
+  'D':['United States','Australia','Paraguay','Slovakia'],
+  'E':['Spain','Morocco','Colombia','Uzbekistan'],
+  'F':['England','Senegal','Iran','Japan'],
+  'G':['Brazil','Norway','Chile','Cape Verde'],
+  'H':['Portugal','Uruguay','Iraq','Jamaica'],
+  'I':['France','Belgium','DR Congo','Sweden'],
+  'J':['Germany','Scotland','Tunisia','Cuba'],
+  'K':['Netherlands','Peru','Ghana','Turkey'],
+  'L':['Wales','Ecuador','Costa Rica','Kenya'],
+};
+
+// Mapping nom FIFA → emoji + nom court de l'app
+const FIFA_TO_APP={
+  'Mexico':'🇲🇽 Mexique','Korea Republic':'🇰🇷 Corée du Sud',
+  'South Africa':'🇿🇦 Afrique du Sud','Czechia':'🇨🇿 Tchéquie',
+  'Canada':'🇨🇦 Canada','Bosnia and Herzegovina':'🇧🇦 Bosnie',
+  'Qatar':'🇶🇦 Qatar','Switzerland':'🇨🇭 Suisse',
+  'Argentina':'🇦🇷 Argentine','Algeria':'🇩🇿 Algérie',
+  'Ukraine':'🇺🇦 Ukraine','Poland':'🇵🇱 Pologne',
+  'United States':'🇺🇸 États-Unis','Australia':'🇦🇺 Australie',
+  'Paraguay':'🇵🇾 Paraguay','Slovakia':'🇸🇰 Slovaquie',
+  'Spain':'🇪🇸 Espagne','Morocco':'🇲🇦 Maroc',
+  'Colombia':'🇨🇴 Colombie','Uzbekistan':'🇺🇿 Ouzbékistan',
+  'England':'🏴󠁧󠁢󠁥󠁮󠁧󠁿 Angleterre','Senegal':'🇸🇳 Sénégal',
+  'Iran':'🇮🇷 Iran','Japan':'🇯🇵 Japon',
+  'Brazil':'🇧🇷 Brésil','Norway':'🇳🇴 Norvège',
+  'Chile':'🇨🇱 Chili','Cape Verde':'🇨🇻 Cap-Vert',
+  'Portugal':'🇵🇹 Portugal','Uruguay':'🇺🇾 Uruguay',
+  'Iraq':'🇮🇶 Iraq','Jamaica':'🇯🇲 Jamaïque',
+  'France':'🇫🇷 France','Belgium':'🇧🇪 Belgique',
+  'DR Congo':'🇨🇩 RD Congo','Sweden':'🇸🇪 Suède',
+  'Germany':'🇩🇪 Allemagne','Scotland':'🏴󠁧󠁢󠁳󠁣󠁴󠁿 Écosse',
+  'Tunisia':'🇹🇳 Tunisie','Cuba':'🇨🇺 Cuba',
+  'Netherlands':'🇳🇱 Pays-Bas','Peru':'🇵🇪 Pérou',
+  'Ghana':'🇬🇭 Ghana','Turkey':'🇹🇷 Turquie',
+  'Wales':'🏴󠁧󠁢󠁷󠁬󠁳󠁿 Pays de Galles','Ecuador':'🇪🇨 Équateur',
+  'Costa Rica':'🇨🇷 Costa Rica','Kenya':'🇰🇪 Kenya',
+};
+
+let classementsLive={};
+
+async function chargerClassementsLive(){
+  try{
+    // Utilise l'API football-data.org (gratuite, pas de clé requise pour WC)
+    const r=await fetch('https://api.football-data.org/v4/competitions/WC/standings',{
+      headers:{'X-Auth-Token':'9d6e03fe72a4442a9a8dc28b42be15f6'}
+    });
+    if(!r.ok) throw new Error('API indisponible');
+    const d=await r.json();
+    // Parser les standings par groupe
+    d.standings.forEach(grp=>{
+      const lettre=grp.group.replace('GROUP_','');
+      if(lettre&&grp.table){
+        classementsLive[lettre]=grp.table.map(row=>FIFA_TO_APP[row.team.name]||row.team.name);
+      }
+    });
+    return true;
+  }catch(e){
+    return false;
+  }
+}
+
+async function construireRes(){
+  const cont=document.getElementById('res-c');
+  cont.innerHTML='<div style="text-align:center;padding:20px;color:#94a3b8;"><span class="spin">⟳</span> Chargement des résultats en direct...</div>';
+  
+  const ok=await chargerClassementsLive();
+  
+  cont.innerHTML=GROUPES.map(g=>{
+    const live=classementsLive[g.id];
+    const res=cloud.resultats[g.id]||live||null;
     const pp=ptsGroupe(cloud.predictions.papa?cloud.predictions.papa[g.id]:null,res);
     const pa=ptsGroupe(cloud.predictions.alex?cloud.predictions.alex[g.id]:null,res);
-    const hasRes=res&&res.length===4;
+    const hasRes=res&&res.length>=2;
+
     return `<div class="res-card">
-      <div class="res-gh">GROUPE ${g.id}</div>
+      <div class="res-gh">
+        GROUPE ${g.id}
+        ${live?'<span style="font-size:9px;background:rgba(34,197,94,.3);color:#22c55e;padding:2px 6px;border-radius:8px;margin-left:8px;font-weight:600;">🔴 LIVE</span>':''}
+      </div>
       <div class="res-body">
-        <div class="res-instr">Classement final réel :</div>
-        <ul class="res-rank">
-          ${[1,2,3,4].map(pos=>`
-            <li>
-              <span class="res-pos">${pos}e</span>
-              <select class="res-sel" id="res_${g.id}_${pos}">
-                <option value="">— choisir —</option>
-                ${g.eq.map(eq=>`<option value="${eq}" ${res&&res[pos-1]===eq?'selected':''}>${eq}</option>`).join('')}
-              </select>
-            </li>`).join('')}
-        </ul>
-        <button class="btn-ok" onclick="saveRes('${g.id}')">✓ SAUVEGARDER CE GROUPE</button>
-        ${hasRes?`<div class="pts-row">
-          <span class="pb p">👨 Papa: +${pp} pt${pp!==1?'s':''}</span>
-          <span class="pb a">👦 Alex: +${pa} pt${pa!==1?'s':''}</span>
-        </div>`:''}
+        ${live?`
+          <div class="res-instr">Classement actuel (mis à jour automatiquement) :</div>
+          <ul class="res-rank">
+            ${live.map((eq,i)=>`
+              <li>
+                <span class="res-pos" style="color:${i<2?'#22c55e':'#94a3b8'}">${i+1}${i===0?'er':'e'}</span>
+                <span style="font-size:12px;font-weight:${i<2?'700':'400'};color:${i<2?'#f8fafc':'#94a3b8'}">${eq}</span>
+                ${i<2?'<span style="font-size:10px;color:#22c55e;margin-left:4px;">✓ qualifié</span>':''}
+              </li>`).join('')}
+          </ul>
+          ${hasRes?`<div class="pts-row">
+            <span class="pb p">👨 Papa: +${pp} pt${pp!==1?'s':''}</span>
+            <span class="pb a">👦 Alex: +${pa} pt${pa!==1?'s':''}</span>
+          </div>`:'<div style="font-size:11px;color:#94a3b8;margin-top:6px;">Points calculés quand le groupe est terminé</div>'}
+        `:`
+          <div style="font-size:11px;color:#94a3b8;padding:8px 0;">
+            ⏳ Matchs pas encore joués
+          </div>
+        `}
       </div>
     </div>`;
   }).join('');
-}
 
-async function saveRes(gid){
-  const sel=[1,2,3,4].map(p=>{
-    const el=document.getElementById(`res_${gid}_${p}`);
-    return el?el.value:'';
-  });
-  if(sel.some(s=>!s)){toast('Choisis les 4 équipes !','err');return;}
-  const uniq=new Set(sel);
-  if(uniq.size!==4){toast('Chaque équipe une seule fois !','err');return;}
-  try{
-    await lire();
-    cloud.resultats[gid]=sel;
-    await ecrire();
-    toast('✓ Résultat sauvegardé !','ok');
-    construireBoard();
-  }catch(e){toast('✕ Erreur — réessaie','err');}
+  // Mettre à jour les résultats dans le cloud si on a des données live
+  if(ok&&Object.keys(classementsLive).length>0){
+    let changed=false;
+    Object.keys(classementsLive).forEach(gid=>{
+      if(!cloud.resultats[gid]){
+        cloud.resultats[gid]=classementsLive[gid];
+        changed=true;
+      }
+    });
+    if(changed){
+      try{await ecrire();}catch(e){}
+    }
+  }
+  
+  calcPts();
 }
 
 // ══ PRÉDICTIONS ══
